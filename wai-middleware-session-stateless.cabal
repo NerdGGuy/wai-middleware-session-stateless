@@ -1,0 +1,95 @@
+name:            wai-middleware-session-stateless
+version:         0.1
+cabal-version:   >= 1.8
+license:         OtherLicense
+license-file:    COPYING
+category:        Web
+copyright:       © 2013 Matthew Green
+author:          Matthew Green <babygguy@gmail.com>
+maintainer:      Matthew Green <babygguy@gmail.com>
+stability:       experimental
+tested-with:     GHC == 7.0.3
+synopsis:        Flexible session middleware for WAI
+homepage:        https://github.com/nerdgguy/wai-middleware-session-stateless
+bug-reports:     https://github.com/nerdgguy/wai-middleware-session-stateless/issues
+build-type:      Simple
+description:
+        Cookie-based middleware for stateless sessions
+        .
+        See example/Main.hs in git for example usage.
+
+extra-source-files:
+        README
+
+source-repository head
+        type:     git
+        location: git://github.com/NerdGGuy/wai-middleware-session-stateless.git
+
+library
+        exposed-modules:
+                Network.Wai.Middleware.Session.Stateless
+
+        build-depends:
+                base,
+                byteable,
+                cryptohash,
+                securemem,
+                wai-middleware-cookie,
+                data-default,
+                bytestring,
+                cookie,
+                base64-bytestring,
+                wai,
+                http-types,
+                wai-test
+
+        hs-source-dirs: src
+
+test-suite test-session-stateless
+        build-depends:
+                base,
+                securemem,
+                wai-middleware-cookie,
+                bytestring,
+                cookie,
+                base64-bytestring,
+                wai,
+                http-types,
+                case-insensitive,
+                wai-middleware-session-stateless,
+                QuickCheck,
+                wai-test
+
+        type: exitcode-stdio-1.0
+
+        main-is: Stateless.hs
+
+        buildable: True
+
+        hs-source-dirs: test
+
+Executable example
+  Main-Is:        Main.hs
+  Build-Depends:
+                base,
+                network,
+                securemem,
+                wai-middleware-cookie,
+                bytestring,
+                text,
+                wai-middleware-static,
+                wai-extra,
+                warp,
+                warp-tls,
+                cookie,
+                base64-bytestring,
+                wai,
+                http-types,
+                case-insensitive,
+                wai-middleware-session-stateless,
+                QuickCheck,
+                wai-test,
+                aeson,
+                hoauth2
+
+  Hs-Source-Dirs: example
