@@ -17,6 +17,8 @@ import Data.Text (Text)
 import Data.Monoid (mempty)
 import Data.Text.Encoding
 import Data.Default
+import Control.Monad.IO.Class
+import Data.Text.Encoding
 
 import           Keys                            (googleKey)
 import           Network.OAuth.OAuth2
@@ -56,8 +58,10 @@ $(deriveJSON defaultOptions ''User)
 
 --------------------------------------------------
 
-login :: Middleware
-login = setSession (defSetSessionConfig  ("username" :: BS.ByteString)  ("00000000" :: BS.ByteString) getKey)
+login :: BSC8.ByteString -> Middleware
+login email app req = do
+    nonce <- liftIO setSessionNOncePOSIXTimeNow
+    setSession (SetSessionConfig  [("email", email)] nonce "HMAC" getKey) app req
 
 redirect302 :: BS.ByteString -> Application
 redirect302 uri _ = return $ responseLBS status302 [("Location", uri)] mempty
@@ -93,7 +97,7 @@ sessionGoogleCallback req =
                                                         Right (info :: Token) -> do
                                                             case verified_email info of
                                                                 Just True -> case email info of
-                                                                    Just emailtext -> login (application "login") req -- application (L.fromStrict $ encodeUtf8 emailtext) req
+                                                                    Just emailtext -> (login $ encodeUtf8 emailtext) (application "login") req -- application (L.fromStrict $ encodeUtf8 emailtext) req
                                                                     Nothing -> error400 req
                                                                 Just False -> application "emailnotverified" req
                                                                 Nothing -> error400 req
@@ -108,17 +112,12 @@ sessionGoogleCallback req =
         lookupQuery name = lookup name (queryString req)
 
 appSession :: Application
-appSession = session (SessionConfig [("username",(\x -> True))] [("expiry",checkExpiry)] "HMAC" getKey) (application "session") (application "sessionless")
+appSession req = do
+  nonce <- liftIO $ sessionNOncePOSIXTimeNow (30)
+  session (SessionConfig [("email",(\x -> True))] nonce "HMAC" getKey) (application "session") (application "sessionless") req
 
 appUnSetSession :: Middleware
-appUnSetSession = clearSession ["username","expiry"]
-
-appSetSession :: Middleware
-appSetSession = setSession (SetSessionConfig [("name","username")] [("expiry","00000000")] "HMAC" getKey)
-
-checkExpiry :: BS.ByteString -> Bool
-checkExpiry "00000000" = True
-checkExpiry _ = False
+appUnSetSession = clearSession ["email","expire"]
 
 application :: L.ByteString -> Application
 application x _ = return $ responseLBS status200 [("Content-Type", "text/plain")] x

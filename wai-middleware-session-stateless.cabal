@@ -1,14 +1,14 @@
 name:            wai-middleware-session-stateless
 version:         0.1
 cabal-version:   >= 1.8
-license:         OtherLicense
-license-file:    COPYING
+license:         MIT
+license-file:    LICENSE.md
 category:        Web
-copyright:       © 2013 Matthew Green
+copyright:       © 2014 Matthew Green
 author:          Matthew Green <babygguy@gmail.com>
 maintainer:      Matthew Green <babygguy@gmail.com>
 stability:       experimental
-tested-with:     GHC == 7.0.3
+tested-with:     GHC == 7.6.3
 synopsis:        Flexible session middleware for WAI
 homepage:        https://github.com/nerdgguy/wai-middleware-session-stateless
 bug-reports:     https://github.com/nerdgguy/wai-middleware-session-stateless/issues
@@ -28,11 +28,14 @@ source-repository head
 library
         exposed-modules:
                 Network.Wai.Middleware.Session.Stateless
+                Network.Wai.Middleware.Session.Stateless.Types
+                Network.Wai.Middleware.Session.Stateless.NOnce.POSIXTime
 
         build-depends:
                 base,
                 byteable,
                 cryptohash,
+                time,
                 securemem,
                 wai-middleware-cookie,
                 data-default,
@@ -51,6 +54,7 @@ test-suite test-session-stateless
                 securemem,
                 wai-middleware-cookie,
                 bytestring,
+                data-default,
                 cookie,
                 base64-bytestring,
                 wai,
@@ -76,6 +80,7 @@ Executable example
                 securemem,
                 wai-middleware-cookie,
                 bytestring,
+                data-default,
                 text,
                 wai-middleware-static,
                 wai-extra,
@@ -91,5 +96,33 @@ Executable example
                 wai-test,
                 aeson,
                 hoauth2
+
+  Hs-Source-Dirs: example
+
+Executable posixTimeExample
+  Main-Is:        POSIXTime.hs
+  Build-Depends:
+                base,
+                network,
+                securemem,
+                wai-middleware-cookie,
+                bytestring,
+                data-default,
+                text,
+                wai-middleware-static,
+                wai-extra,
+                warp,
+                warp-tls,
+                cookie,
+                base64-bytestring,
+                wai,
+                http-types,
+                case-insensitive,
+                wai-middleware-session-stateless,
+                QuickCheck,
+                wai-test,
+                aeson,
+                hoauth2,
+                transformers
 
   Hs-Source-Dirs: example
