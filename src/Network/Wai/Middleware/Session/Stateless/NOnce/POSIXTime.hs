@@ -1,3 +1,12 @@
+-- |
+-- Module      : Network.Wai.Middleware.Session.Stateless.NOnce.POSIXTime
+-- License     : BSD-style
+-- Maintainer  : Matthew Green
+-- Stability   : experimental
+-- Portability : unknown
+--
+-- Since our session is stateless we can't store a true NOnce so time is used. Always ensure this cookie data is stored securely (https only). Change the name of this package in the future.
+--
 {-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 module Network.Wai.Middleware.Session.Stateless.NOnce.POSIXTime (sessionNOncePOSIXTime, sessionNOncePOSIXTimeNow, setSessionNOncePOSIXTime, setSessionNOncePOSIXTimeNow) where
 import Network.Wai.Middleware.Session.Stateless.Types
