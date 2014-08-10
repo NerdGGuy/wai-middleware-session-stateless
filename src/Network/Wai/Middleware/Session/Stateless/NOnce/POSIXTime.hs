@@ -5,13 +5,12 @@
 -- Stability   : experimental
 -- Portability : unknown
 --
--- Since our session is stateless we can't store a true NOnce so time is used. Always ensure this cookie data is stored securely (https only). Change the name of this package in the future.
+-- Since our session is completely stateless we can't store a true NOnce so time is used. Always ensure this cookie data is stored securely (https only). Change the name of this package in the future.
 --
-{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Network.Wai.Middleware.Session.Stateless.NOnce.POSIXTime (sessionNOncePOSIXTime, sessionNOncePOSIXTimeNow, setSessionNOncePOSIXTime, setSessionNOncePOSIXTimeNow) where
 import Network.Wai.Middleware.Session.Stateless.Types
 import Data.ByteString.Char8
-import Data.Time
 import Data.Time.Clock.POSIX
 
 sessionNOncePOSIXTime :: POSIXTime -> Int -> [(ByteString, ParameterValidator)]
@@ -19,7 +18,7 @@ sessionNOncePOSIXTime time seconds =
     [
         ("expire",
         (\x -> case Data.ByteString.Char8.readInt x of
-            Just (i, x) -> case ((Data.ByteString.Char8.length x) == 0) of
+            Just (i, l) -> case ((Data.ByteString.Char8.length l) == 0) of
                 True -> (i <= (round time)) && (i >= ((round time) - seconds))
                 False -> False
             Nothing -> False)
