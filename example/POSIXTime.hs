@@ -19,6 +19,8 @@ import Data.Text.Encoding
 import Data.Default
 import Control.Monad.IO.Class
 import Data.Text.Encoding
+import Network.HTTP.Conduit (Manager, newManager, conduitManagerSettings)
+
 
 import           Keys                            (googleKey)
 import           Network.OAuth.OAuth2
@@ -59,26 +61,26 @@ $(deriveJSON defaultOptions ''User)
 --------------------------------------------------
 
 login :: BSC8.ByteString -> Middleware
-login email app req = do
+login email app req sendResponse = do
     nonce <- liftIO setSessionNOncePOSIXTimeNow
-    setSession (SetSessionConfig  [("email", email)] nonce "HMAC" getKey) app req
+    setSession (SetSessionConfig  [("email", email)] nonce "HMAC" getKey) app req sendResponse
 
 redirect302 :: BS.ByteString -> Application
-redirect302 uri _ = return $ responseLBS status302 [("Location", uri)] mempty
+redirect302 uri _ sendResponse = sendResponse $ responseLBS status302 [("Location", uri)] mempty
 
 error400 :: Application
-error400 _ = return $ responseLBS status400 [] mempty
+error400 _ sendResponse = sendResponse $ responseLBS status400 [] mempty
 
-sessionApp :: [Text] -> Application
-sessionApp [] = appSession
-sessionApp ["error"] = error400
-sessionApp ["login"] = redirect302 $ authorizationUrl googleKey `appendQueryParam` googleScopeEmail `appendQueryParam` googleState
-sessionApp ["logout"] = appUnSetSession $ application "logout"
-sessionApp ["googleCallback"] = sessionGoogleCallback -- (\req -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ fromString $ show $ fst $ head $ queryString req)
-sessionApp _ = notFound
+sessionApp :: Manager -> [Text] -> Application
+sessionApp _ [] req sendResponse = appSession req sendResponse
+sessionApp _ ["error"] req sendResponse = error400 req sendResponse
+sessionApp _ ["login"] req sendResponse = redirect302 (authorizationUrl googleKey `appendQueryParam` googleScopeEmail `appendQueryParam` googleState) req sendResponse
+sessionApp _ ["logout"] req sendResponse = appUnSetSession (application "logout") req sendResponse
+sessionApp mgr ["googleCallback"] req sendResponse = sessionGoogleCallback mgr req sendResponse -- (\req -> return $ responseLBS status200 [("Content-Type", "text/plain")] $ fromString $ show $ fst $ head $ queryString req)
+sessionApp _ _ req sendResponse = notFound req sendResponse
 
-sessionGoogleCallback :: Application
-sessionGoogleCallback req =
+sessionGoogleCallback :: Manager -> Application
+sessionGoogleCallback mgr req sendResponse =
     case lookupQuery "state" of
         Just mstate ->
             case mstate of
@@ -89,42 +91,42 @@ sessionGoogleCallback req =
                                 Just mcode ->
                                     case mcode of
                                         Just code -> do
-                                            fetch <- fetchAccessToken googleKey code
+                                            fetch <- fetchAccessToken mgr googleKey code
                                             case fetch of
                                                 Right token -> do --FIXME, a "something went wrong" error can happen if the code is wrong
-                                                    tokeninfo <- authGetJSON token "https://www.googleapis.com/oauth2/v1/tokeninfo" --application (L.fromStrict $ accessToken token) req
+                                                    tokeninfo <- authGetJSON mgr token "https://www.googleapis.com/oauth2/v1/tokeninfo" --application (L.fromStrict $ accessToken token) req
                                                     case tokeninfo of
                                                         Right (info :: Token) -> do
                                                             case verified_email info of
                                                                 Just True -> case email info of
-                                                                    Just emailtext -> (login $ encodeUtf8 emailtext) (application "login") req -- application (L.fromStrict $ encodeUtf8 emailtext) req
-                                                                    Nothing -> error400 req
-                                                                Just False -> application "emailnotverified" req
-                                                                Nothing -> error400 req
-                                                        Left tokenerror -> application "tokenerror" req
-                                                Left fetchError -> application "fetcherror" req --FIXME, get "something went wrong" error to fail here and use fetchError
-                                        Nothing -> error400 req
-                                Nothing -> error400 req
-                        False -> error400 req
-                Nothing -> error400 req
-        Nothing -> error400 req
+                                                                    Just emailtext -> (login $ encodeUtf8 emailtext) (application "login") req sendResponse -- application (L.fromStrict $ encodeUtf8 emailtext) req
+                                                                    Nothing -> error400 req sendResponse
+                                                                Just False -> application "emailnotverified" req sendResponse
+                                                                Nothing -> error400 req sendResponse
+                                                        Left tokenerror -> application "tokenerror" req sendResponse
+                                                Left fetchError -> application "fetcherror" req sendResponse --FIXME, get "something went wrong" error to fail here and use fetchError
+                                        Nothing -> error400 req sendResponse
+                                Nothing -> error400 req sendResponse
+                        False -> error400 req sendResponse
+                Nothing -> error400 req sendResponse
+        Nothing -> error400 req sendResponse
     where
         lookupQuery name = lookup name (queryString req)
 
 appSession :: Application
-appSession req = do
+appSession req sendResponse = do
   nonce <- liftIO $ sessionNOncePOSIXTimeNow (30)
-  session (SessionConfig [("email",(\x -> True))] nonce "HMAC" getKey) (application "session") (application "sessionless") req
+  session (SessionConfig [("email",(\x -> True))] nonce "HMAC" getKey) (application "session") (application "sessionless") req sendResponse
 
 appUnSetSession :: Middleware
 appUnSetSession = clearSession ["email","expire"]
 
 application :: L.ByteString -> Application
-application x _ = return $ responseLBS status200 [("Content-Type", "text/plain")] x
+application x _ sendResponse = sendResponse $ responseLBS status200 [("Content-Type", "text/plain")] x
 
 appfile x y = responseFile status200 y x Nothing
 
-notFound _ = return $ responseLBS status404 [("Content-Type", "text/plain")] "404 Not Found"
+notFound _ sendResponse = sendResponse $ responseLBS status404 [("Content-Type", "text/plain")] "404 Not Found"
 
 getKey :: SecureMem
 getKey = secureMemFromByteString "00000000000000000000000000000000"
@@ -145,36 +147,38 @@ checkState :: BSC8.ByteString -> Bool
 checkState = (==) "00000000"
 
 -- | Token Validation
-validateToken :: AccessToken -> IO (OAuth2Result BL.ByteString)
-validateToken token = authGetBS token "https://www.googleapis.com/oauth2/v1/tokeninfo"
+--validateToken :: AccessToken -> IO (OAuth2Result BL.ByteString)
+--validateToken token = authGetBS token "https://www.googleapis.com/oauth2/v1/tokeninfo"
 
-validateToken' :: FromJSON a => AccessToken -> IO (OAuth2Result a)
-validateToken' token = authGetJSON token "https://www.googleapis.com/oauth2/v1/tokeninfo"
+--validateToken' :: FromJSON a => AccessToken -> IO (OAuth2Result a)
+--validateToken' token = authGetJSON token "https://www.googleapis.com/oauth2/v1/tokeninfo"
 
 -- | fetch user email.
 --   for more information, please check the playround site.
 --
-userinfo :: AccessToken -> IO (OAuth2Result BL.ByteString)
-userinfo token = authGetBS token "https://www.googleapis.com/oauth2/v2/userinfo"
+--userinfo :: AccessToken -> IO (OAuth2Result BL.ByteString)
+--userinfo token = authGetBS token "https://www.googleapis.com/oauth2/v2/userinfo"
 
-userinfo' :: FromJSON a => AccessToken -> IO (OAuth2Result a)
-userinfo' token = authGetJSON token "https://www.googleapis.com/oauth2/v2/userinfo"
+--userinfo' :: FromJSON a => AccessToken -> IO (OAuth2Result a)
+--userinfo' token = authGetJSON token "https://www.googleapis.com/oauth2/v2/userinfo"
 
-normalCase :: IO ()
-normalCase = do
-    BSC8.putStrLn $ authorizationUrl googleKey `appendQueryParam` googleScopeUserInfo
-    putStrLn "visit the url and paste code here: "
-    code <- fmap BSC8.pack getLine
-    (Right token) <- fetchAccessToken googleKey code
-    putStr "AccessToken: " >> print token
-    -- get response in ByteString
-    validateToken token >>= print
-    -- get response in JSON
-    (validateToken' token :: IO (OAuth2Result Token)) >>= print
-    -- get response in ByteString
-    userinfo token >>= print
-    -- get response in JSON
-    (userinfo' token :: IO (OAuth2Result User)) >>= print
+--normalCase :: IO ()
+--normalCase = do
+--    BSC8.putStrLn $ authorizationUrl googleKey `appendQueryParam` googleScopeUserInfo
+--    putStrLn "visit the url and paste code here: "
+--    code <- fmap BSC8.pack getLine
+--    (Right token) <- fetchAccessToken googleKey code
+--    putStr "AccessToken: " >> print token
+--    -- get response in ByteString
+--    validateToken token >>= print
+--    -- get response in JSON
+--    (validateToken' token :: IO (OAuth2Result Token)) >>= print
+--    -- get response in ByteString
+--    userinfo token >>= print
+--    -- get response in JSON
+--    (userinfo' token :: IO (OAuth2Result User)) >>= print
 
-main = runTLS (tlsSettings  "certificate.pem" "key.pem") defaultSettings { settingsPort = 443 } $ cleanPath filterPath "" sessionApp
+main = do
+    mgr <- newManager conduitManagerSettings
+    runTLS (tlsSettings  "certificate.pem" "key.pem") defaultSettings { settingsPort = 443 } $ cleanPath filterPath "" $ sessionApp mgr
 

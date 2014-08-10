@@ -4,7 +4,7 @@ import Data.Unique (newUnique, hashUnique)
 import Data.Ratio (numerator, denominator)
 import Data.String (fromString)
 import Network.HTTP.Types (status200)
-import Network.Wai (Application, Middleware, Request(..), Response(..), responseLBS, responseSource)
+import Network.Wai (Application, Middleware, Request(..), Response(..), responseLBS)
 import Web.Cookie (parseCookies, parseSetCookie, renderSetCookie, SetCookie(..), Cookies(..), setCookieName)
 
 import Data.ByteString.Lazy (ByteString)
@@ -42,7 +42,7 @@ response x = responseLBS status200 [("Content-Type", "text/plain")] x
 
 -- app utils --
 app :: ByteString -> Application
-app x req = do return $ response x
+app x req sendResponse = sendResponse $ response x
 
 --checkExpiry :: [(BS.ByteString,BS.ByteString)] -> Bool
 --checkExpiry x = case lookup "expiry" x of

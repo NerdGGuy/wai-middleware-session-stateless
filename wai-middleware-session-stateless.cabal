@@ -43,10 +43,11 @@ library
                 cookie,
                 base64-bytestring,
                 wai,
-                http-types,
-                wai-test
+                http-types
 
         hs-source-dirs: src
+
+        ghc-options: -Wall -fwarn-tabs -funbox-strict-fields -fno-warn-unused-do-bind
 
 test-suite test-session-stateless
         build-depends:
@@ -62,7 +63,7 @@ test-suite test-session-stateless
                 case-insensitive,
                 wai-middleware-session-stateless,
                 QuickCheck,
-                wai-test
+                wai-extra
 
         type: exitcode-stdio-1.0
 
@@ -72,38 +73,12 @@ test-suite test-session-stateless
 
         hs-source-dirs: test
 
-Executable example
-  Main-Is:        Main.hs
-  Build-Depends:
-                base,
-                network,
-                securemem,
-                wai-middleware-cookie,
-                bytestring,
-                data-default,
-                text,
-                wai-middleware-static,
-                wai-extra,
-                warp,
-                warp-tls,
-                cookie,
-                base64-bytestring,
-                wai,
-                http-types,
-                case-insensitive,
-                wai-middleware-session-stateless,
-                QuickCheck,
-                wai-test,
-                aeson,
-                hoauth2
-
-  Hs-Source-Dirs: example
+        ghc-options: -Wall -fwarn-tabs -funbox-strict-fields -fno-warn-unused-do-bind
 
 Executable posixTimeExample
   Main-Is:        POSIXTime.hs
   Build-Depends:
                 base,
-                network,
                 securemem,
                 wai-middleware-cookie,
                 bytestring,
@@ -119,10 +94,11 @@ Executable posixTimeExample
                 http-types,
                 case-insensitive,
                 wai-middleware-session-stateless,
-                QuickCheck,
-                wai-test,
                 aeson,
                 hoauth2,
-                transformers
+                transformers,
+                http-conduit
 
   Hs-Source-Dirs: example
+
+  ghc-options: -Wall -fwarn-tabs -funbox-strict-fields -fno-warn-unused-do-bind
